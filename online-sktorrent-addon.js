@@ -230,23 +230,29 @@ function extractVideoIdFromAny(s) {
 builder.defineStreamHandler(async ({ type, id }) => {
   console.log(`\n====== 🎮 STREAM požiadavka: type='${type}', id='${id}' ======`);
 
-  // 👇 NOVÉ: ak príde priamo cesta/URL typu /video/58290…, preskoč IMDB a rovno parsuj detail
-  const directVideoId = extractVideoIdFromAny(id);
-  if (directVideoId) {
-    const streams = await extractStreamsFromVideoId(directVideoId);
-    console.log(`[INFO] 📤 Odosielam ${streams.length} streamov (direct videoId=${directVideoId})`);
+  // 🔹 1) Najprv skúsiť, či id neobsahuje priamo /video/<číslo>
+  const decodedId = (() => {
+    try { return decodeURIComponent(id || ""); } catch { return id || ""; }
+  })();
+
+  const directMatch = decodedId.match(/\/video\/(\d+)/i);
+  if (directMatch) {
+    const videoId = directMatch[1];
+    console.log(`[DEBUG] ✅ Detegovaný priamy link /video/${videoId} – preskakujem Cinemetu`);
+    const streams = await extractStreamsFromVideoId(videoId);
+    console.log(`[INFO] 📤 Odosielam ${streams.length} streamov (direct videoId=${videoId})`);
     return { streams };
   }
 
-  // (pôvodná logika s IMDB zostáva)
-  const [imdbId, seasonStr, episodeStr] = id.split(":");
+  // 🔹 2) Až keď to nie je /video/ID, pokračuj pôvodnou IMDB cestou
+  const [imdbId, seasonStr, episodeStr] = decodedId.split(":");
   const season = seasonStr ? parseInt(seasonStr) : null;
   const episode = episodeStr ? parseInt(episodeStr) : null;
 
   const titles = await getTitleFromIMDb(type, imdbId);
   if (!titles) return { streams: [] };
 
-  // ... zvyšok tvojho pôvodného kódu tu nechaj bezo zmeny ...
+  // ... TU nechaj zvyšok tvojej pôvodnej logiky (queries, searchOnlineVideos, extractStreamsFromVideoId, atď.)
 });
 
 
