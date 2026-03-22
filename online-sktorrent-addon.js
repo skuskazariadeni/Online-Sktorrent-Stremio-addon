@@ -84,31 +84,102 @@ async function getTitleFromIMDb(type, imdbId) {
     return null;
   }
 }
+
 async function searchOnlineVideos(query) {
-    const searchUrl = `https://online.sktorrent.eu/search/videos?search_query=${encodeURIComponent(query)}`;
-    console.log(`[INFO] 🔍 Hľadám '${query}' na ${searchUrl}`);
-    try {
-        const res = await axios.get(searchUrl, { headers: commonHeaders });
-        console.log(`[DEBUG] Status: ${res.status}`);
-        console.log(`[DEBUG] HTML Snippet:`, res.data.slice(0, 300));
+  // 1) Skúsime niekoľko možných vyhľadávacích ciest
+  const candidates = [
+    `${BASE}/search/videos?search_query=${encodeURIComponent(query)}`,
+    `${BASE}/search?q=${encodeURIComponent(query)}`,
+    `${BASE}/?s=${encodeURIComponent(query)}`
+  ];
 
-        const $ = cheerio.load(res.data);
-        const links = [];
-        $("a[href^='/video/']").each((i, el) => {
-            const href = $(el).attr("href");
-            if (href) {
-                const match = href.match(/\/video\/(\d+)/);
-                if (match) links.push(match[1]);
-            }
-        });
+  const headers = {
+    ...commonHeaders,
+    Referer: BASE + "/",
+    "Accept-Language": "sk,cs;q=0.9,en;q=0.8"
+  };
 
-        console.log(`[INFO] 📺 Nájdených videí: ${links.length}`);
-        return links;
-    } catch (err) {
-        console.error("[ERROR] ❌ Vyhľadávanie online videí zlyhalo:", err.message);
-        return [];
+  // Pomocná funkcia: zo stránky vytiahne ID videí rôznymi spôsobmi
+  const extractIds = (html) => {
+    const ids = new Set();
+    const $ = cheerio.load(html);
+
+    // 1) Štandardné odkazy /video/12345
+    $("a[href^='/video/']").each((_, el) => {
+      const href = $(el).attr("href") || "";
+      const m = href.match(/\/video\/(\d+)/);
+      if (m) ids.add(m[1]);
+    });
+
+    // 2) Niekedy býva iná štruktúra – regex priamo nad HTML
+    const re = /href=["']\/video\/(\d+)["']/g;
+    let match;
+    while ((match = re.exec(html)) !== null) {
+      ids.add(match[1]);
     }
+
+    // 3) Ak by stránka používala iný prefix (napr. /watch/123), pridaj ďalší regex:
+    // const re2 = /href=["']\/watch\/(\d+)["']/g; while ((match = re2.exec(html)) !== null) ids.add(match[1]);
+
+    return Array.from(ids);
+  };
+
+  // 2) Skúsime kandidátov, prvý, čo niečo nájde, vyhráva
+  for (const url of candidates) {
+    try {
+      console.log(`[INFO] 🔍 Hľadám '${query}' na ${url}`);
+      const res = await axios.get(url, { headers, timeout: 20000 });
+      console.log(`[DEBUG] Status: ${res.status}`);
+      const html = typeof res.data === "string" ? res.data : "";
+      console.log(`[DEBUG] HTML length: ${html.length}`);
+
+      if (html && html.length > 50) {
+        const ids = extractIds(html);
+        console.log(`[INFO] 📺 Nájdených videí: ${ids.length} (na ${url})`);
+        if (ids.length > 0) return ids;
+      }
+    } catch (err) {
+      console.error("[ERROR] ❌ Vyhľadávanie zlyhalo na", url, "→", err.message);
+    }
+  }
+
+  // 3) Fallback: prehľadaj homepage / katalóg, ak vyhľadávanie nič nedalo
+  try {
+    console.log(`[INFO] 🏠 Fallback – prehľadávam homepage podľa '${query}'`);
+    const home = await axios.get(`${BASE}/`, { headers, timeout: 20000 });
+    const html = typeof home.data === "string" ? home.data : "";
+    const $ = cheerio.load(html);
+
+    // Nájdeme karty a z tých, ktoré menom približne sedia na query, vytiahneme /video/ID
+    const ids = new Set();
+    $(".card, .movie-card, .col, .col-md-3, a").each((_, el) => {
+      const $el = $(el);
+      const title =
+        $el.find(".card-title").text().trim() ||
+        $el.find("h5, h4, .title").first().text().trim() ||
+        $el.attr("title") || "";
+      const href = $el.attr("href") || $el.find("a").attr("href") || "";
+
+      if (!href) return;
+
+      // jemný match na názov (bez diakritiky, case-insensitive)
+      const t = removeDiacritics((title || "").toLowerCase());
+      const q = removeDiacritics(query.toLowerCase());
+      if (t && (t === q || t.includes(q))) {
+        const m = href.match(/\/video\/(\d+)/);
+        if (m) ids.add(m[1]);
+      }
+    });
+
+    const out = Array.from(ids);
+    console.log(`[INFO] 📺 Fallback našiel videí: ${out.length}`);
+    return out;
+  } catch (err) {
+    console.error("[ERROR] ❌ Fallback homepage zlyhal:", err.message);
+    return [];
+  }
 }
+
 
 async function extractStreamsFromVideoId(videoId) {
     const url = `https://online.sktorrent.eu/video/${videoId}`;
