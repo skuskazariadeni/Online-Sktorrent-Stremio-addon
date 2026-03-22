@@ -217,52 +217,36 @@ async function extractStreamsFromVideoId(videoId) {
     }
 }
 
+function extractVideoIdFromAny(s) {
+  try {
+    const decoded = decodeURIComponent(s || "");
+    const m = decoded.match(/\/video\/(\d+)/i);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 builder.defineStreamHandler(async ({ type, id }) => {
-    console.log(`\n====== 🎮 STREAM požiadavka: type='${type}', id='${id}' ======`);
-    const [imdbId, seasonStr, episodeStr] = id.split(":");
-    const season = seasonStr ? parseInt(seasonStr) : null;
-    const episode = episodeStr ? parseInt(episodeStr) : null;
+  console.log(`\n====== 🎮 STREAM požiadavka: type='${type}', id='${id}' ======`);
 
-    const titles = await getTitleFromIMDb(type, imdbId);
-    if (!titles) return { streams: [] };
+  // 👇 NOVÉ: ak príde priamo cesta/URL typu /video/58290…, preskoč IMDB a rovno parsuj detail
+  const directVideoId = extractVideoIdFromAny(id);
+  if (directVideoId) {
+    const streams = await extractStreamsFromVideoId(directVideoId);
+    console.log(`[INFO] 📤 Odosielam ${streams.length} streamov (direct videoId=${directVideoId})`);
+    return { streams };
+  }
 
-    const { title, originalTitle } = titles;
-    const queries = new Set();
+  // (pôvodná logika s IMDB zostáva)
+  const [imdbId, seasonStr, episodeStr] = id.split(":");
+  const season = seasonStr ? parseInt(seasonStr) : null;
+  const episode = episodeStr ? parseInt(episodeStr) : null;
 
-    const baseTitles = [title, originalTitle].map(t => t.replace(/\(.*?\)/g, '').trim());
-    for (const base of baseTitles) {
-        const noDia = removeDiacritics(base);
-        const short = shortenTitle(noDia);
-        const short1 = shortenTitle(noDia, 1);
+  const titles = await getTitleFromIMDb(type, imdbId);
+  if (!titles) return { streams: [] };
 
-        if (type === 'series' && season && episode) {
-            const epTag1 = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
-            const epTag2 = `${season}x${episode}`;
-            [base, noDia, short, short1].forEach(b => {
-                queries.add(`${b} ${epTag1}`);
-                queries.add(`${b} ${epTag2}`);
-            });
-        } else {
-            [base, noDia, short].forEach(b => {
-                queries.add(b);
-            });
-        }
-    }
-
-    let allStreams = [];
-    let attempt = 1;
-    for (const q of queries) {
-        console.log(`[DEBUG] 🔍 Pokus ${attempt++}: '${q}'`);
-        const videoIds = await searchOnlineVideos(q);
-        for (const vid of videoIds) {
-            const streams = await extractStreamsFromVideoId(vid);
-            allStreams.push(...streams);
-        }
-        if (allStreams.length > 0) break;
-    }
-
-    console.log(`[INFO] 📤 Odosielam ${allStreams.length} streamov do Stremio`);
-    return { streams: allStreams };
+  // ... zvyšok tvojho pôvodného kódu tu nechaj bezo zmeny ...
 });
 
 
