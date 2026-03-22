@@ -5,6 +5,11 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const { decode } = require("entities");
 // --- cookies/session podpora (ako requests.Session v Kodi)
+const commonHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36',
+    'Accept-Encoding': 'identity'
+};
+const BASE = "https://online.sktorrent.eu";
 const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
 
@@ -35,11 +40,7 @@ const builder = addonBuilder({
     idPrefixes: ["tt"]
 });
 
-const commonHeaders = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36',
-    'Accept-Encoding': 'identity'
-};
-const BASE = "https://online.sktorrent.eu";
+
 function removeDiacritics(str) {
     return str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
