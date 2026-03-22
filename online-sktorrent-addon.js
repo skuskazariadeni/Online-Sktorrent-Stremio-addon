@@ -204,10 +204,18 @@ builder.defineStreamHandler(async ({ type, id }) => {
     return { streams: allStreams };
 });
 
-builder.defineCatalogHandler(({ type, id }) => {
+
+builder.defineCatalogHandler(async ({ type, id }) => {
+  try {
     console.log(`[DEBUG] 📚 Katalóg požiadavka pre typ='${type}' id='${id}'`);
+    // Dočasne prázdne – dôležité je, že vraciame Promise. Neskôr doplníme dáta.
     return { metas: [] };
+  } catch (e) {
+    console.error("Catalog handler error:", e?.message || e);
+    return { metas: [] }; // nikdy nevracaj 500
+  }
 });
+
 
 console.log("📦 Manifest:", builder.getInterface().manifest);
 serveHTTP(builder.getInterface(), { port: 7000 });
