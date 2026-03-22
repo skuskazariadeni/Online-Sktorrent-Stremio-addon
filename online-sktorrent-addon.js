@@ -4,6 +4,22 @@ const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const { decode } = require("entities");
+// --- cookies/session podpora (ako requests.Session v Kodi)
+const { wrapper } = require('axios-cookiejar-support');
+const { CookieJar } = require('tough-cookie');
+
+const jar = new CookieJar(); // spoločný cookie-jar pre všetky requesty
+const http = wrapper(
+  axios.create({
+    timeout: 20000,
+    headers: {
+      ...commonHeaders,
+      "Accept-Language": "sk,cs;q=0.9,en;q=0.8"
+    },
+    jar,
+    withCredentials: true
+  })
+);
 
 const builder = addonBuilder({
     id: "org.stremio.sktonline",
@@ -69,7 +85,7 @@ async function getTitleFromIMDb(type, imdbId) {
   try {
     const url = `https://v3-cinemeta.strem.io/meta/${type}/${imdbId}.json`;
     console.log(`[DEBUG] 🌐 Cinemeta Request: ${url}`);
-    const res = await axios.get(url, { headers: commonHeaders, timeout: 12000 });
+    const res = await http.get(url, { headers: commonHeaders, timeout: 12000 });
     const meta = res?.data?.meta || {};
     const title = (meta.name || meta.title || "").trim();
     const originalTitle = (meta.originalTitle || title || "").trim();
@@ -128,7 +144,7 @@ async function searchOnlineVideos(query) {
   for (const url of candidates) {
     try {
       console.log(`[INFO] 🔍 Hľadám '${query}' na ${url}`);
-      const res = await axios.get(url, { headers, timeout: 20000 });
+      const res = await http.get(url, { headers, timeout: 20000 });
       console.log(`[DEBUG] Status: ${res.status}`);
       const html = typeof res.data === "string" ? res.data : "";
       console.log(`[DEBUG] HTML length: ${html.length}`);
@@ -146,7 +162,7 @@ async function searchOnlineVideos(query) {
   // 3) Fallback: prehľadaj homepage / katalóg, ak vyhľadávanie nič nedalo
   try {
     console.log(`[INFO] 🏠 Fallback – prehľadávam homepage podľa '${query}'`);
-    const home = await axios.get(`${BASE}/`, { headers, timeout: 20000 });
+    const home = await http.get(`${BASE}/`, { headers, timeout: 20000 });
     const html = typeof home.data === "string" ? home.data : "";
     const $ = cheerio.load(html);
 
@@ -185,7 +201,7 @@ async function extractStreamsFromVideoId(videoId) {
   const url = `${BASE}/video/${videoId}`;
   console.log(`[DEBUG] 🔎 Načítavam detaily videa: ${url}`);
   try {
-    const res = await axios.get(url, {
+    const res = await http.get(url, {
       headers: {
         ...commonHeaders,
         Referer: BASE + "/",
