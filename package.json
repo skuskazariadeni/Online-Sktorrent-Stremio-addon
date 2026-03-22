@@ -13,7 +13,7 @@
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "entities": "^4.5.0",
-    "stremio-addon-sdk": "^1.7.4",
+    "stremio-addon-sdk": "^1.7.3",
     "tough-cookie": "^4.1.3"
   }
 }
