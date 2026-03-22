@@ -65,35 +65,25 @@ function formatName(fullTitle, flagsArray) {
     return fullTitle + "\n⚙️SKTonline" + (iconStr ? "\n" + iconStr : "");
 }
 
-async function getTitleFromIMDb(imdbId) {
-    try {
-        const url = `https://www.imdb.com/title/${imdbId}/`;
-        console.log(`[DEBUG] 🌐 IMDb Request: ${url}`);
-        const res = await axios.get(url, { headers: commonHeaders });
-
-        if (res.status === 404) {
-            console.error("[ERROR] IMDb scraping zlyhal: stránka neexistuje (404)");
-            return null;
-        }
-
-        const $ = cheerio.load(res.data);
-        const titleRaw = $('title').text().split(' - ')[0].trim();
-        const title = decode(titleRaw);
-        const ldJson = $('script[type="application/ld+json"]').html();
-        let originalTitle = title;
-        if (ldJson) {
-            const json = JSON.parse(ldJson);
-            if (json && json.name) originalTitle = decode(json.name.trim());
-        }
-
-        console.log(`[DEBUG] 🎬 IMDb title: ${title}, original: ${originalTitle}`);
-        return { title, originalTitle };
-    } catch (err) {
-        console.error("[ERROR] IMDb scraping zlyhal:", err.message);
-        return null;
+async function getTitleFromIMDb(type, imdbId) {
+  try {
+    const url = `https://v3-cinemeta.strem.io/meta/${type}/${imdbId}.json`;
+    console.log(`[DEBUG] 🌐 Cinemeta Request: ${url}`);
+    const res = await axios.get(url, { headers: commonHeaders, timeout: 12000 });
+    const meta = res?.data?.meta || {};
+    const title = (meta.name || meta.title || "").trim();
+    const originalTitle = (meta.originalTitle || title || "").trim();
+    if (!title) {
+      console.error("[ERROR] Cinemeta nenašla názov");
+      return null;
     }
+    console.log(`[DEBUG] 🎬 Cinemeta title: ${title}, original: ${originalTitle}`);
+    return { title, originalTitle };
+  } catch (err) {
+    console.error("[ERROR] Cinemeta zlyhala:", err.message);
+    return null;
+  }
 }
-
 async function searchOnlineVideos(query) {
     const searchUrl = `https://online.sktorrent.eu/search/videos?search_query=${encodeURIComponent(query)}`;
     console.log(`[INFO] 🔍 Hľadám '${query}' na ${searchUrl}`);
@@ -162,7 +152,7 @@ builder.defineStreamHandler(async ({ type, id }) => {
     const season = seasonStr ? parseInt(seasonStr) : null;
     const episode = episodeStr ? parseInt(episodeStr) : null;
 
-    const titles = await getTitleFromIMDb(imdbId);
+    const titles = await getTitleFromIMDb(type, imdbId);
     if (!titles) return { streams: [] };
 
     const { title, originalTitle } = titles;
