@@ -182,48 +182,103 @@ async function searchOnlineVideos(query) {
 
 
 async function extractStreamsFromVideoId(videoId) {
-    const url = `https://online.sktorrent.eu/video/${videoId}`;
-    console.log(`[DEBUG] 🔎 Načítavam detaily videa: ${url}`);
-    try {
-        const res = await axios.get(url, { headers: commonHeaders });
-        console.log(`[DEBUG] Status: ${res.status}`);
-        console.log(`[DEBUG] Detail HTML Snippet:`, res.data.slice(0, 300));
-
-        const $ = cheerio.load(res.data);
-        const sourceTags = $('video source');
-        const titleText = $('title').text().trim();
-        const flags = extractFlags(titleText);
-
-        const streams = [];
-        sourceTags.each((i, el) => {
-            let src = $(el).attr('src');
-            const label = $(el).attr('label') || 'Unknown';
-            if (src && src.endsWith('.mp4')) {
-                src = src.replace(/([^:])\/\/+/, '$1/');
-                console.log(`[DEBUG] 🎞️ ${label} stream URL: ${src}`);
-                streams.push({
-                    title: formatName(titleText, flags),
-                    name: formatTitle(label),
-                    url: src
-                });
-            }
-        });
-
-        console.log(`[INFO] ✅ Našiel som ${streams.length} streamov pre videoId=${videoId}`);
-        return streams;
-    } catch (err) {
-        console.error("[ERROR] ❌ Chyba pri načítaní detailu videa:", err.message);
-        return [];
-    }
-}
-
-function extractVideoIdFromAny(s) {
+  const url = `${BASE}/video/${videoId}`;
+  console.log(`[DEBUG] 🔎 Načítavam detaily videa: ${url}`);
   try {
-    const decoded = decodeURIComponent(s || "");
-    const m = decoded.match(/\/video\/(\d+)/i);
-    return m ? m[1] : null;
-  } catch {
-    return null;
+    const res = await axios.get(url, {
+      headers: {
+        ...commonHeaders,
+        Referer: BASE + "/",
+        Accept: "text/html,application/xhtml+xml,*/*",
+        "Accept-Language": "sk,cs;q=0.9,en;q=0.8"
+      },
+      timeout: 20000,
+      responseType: "text"
+    });
+
+    const html = typeof res.data === "string" ? res.data : (res.data || "");
+    console.log(`[DEBUG] Status: ${res.status}`);
+    console.log(`[DEBUG] Detail HTML length: ${html.length}`);
+
+    const $ = cheerio.load(html);
+    const titleText =
+      ($("title").text() || "").trim() ||
+      ($("h1").first().text() || "").trim();
+    const flags = extractFlags(titleText);
+
+    const streams = [];
+    const seen = new Set();
+
+    // 1) <video>...mp4
+    $("video source").each((_, el) => {
+      let src = $(el).attr("src") || "";
+      let label = $(el).attr("label") || "";
+      if (!src) return;
+      if (src.startsWith("/")) src = BASE + src;
+      if (!/\.mp4(\?|$)/i.test(src)) return;
+
+      if (!label) {
+        const m = src.match(/(\d{3,4}p)/i);
+        label = m ? m[1].toUpperCase() : "MP4";
+      }
+      if (seen.has(src)) return;
+      seen.add(src);
+
+      streams.push({
+        title: formatName(titleText || "SKTonline video", flags),
+        name: formatTitle(label),
+        url: src
+      });
+      console.log(`[DEBUG] 🎞️ (source) ${label}: ${src}`);
+    });
+
+    // 2) Priame odkazy v ...mp4
+    $("a[href*='.mp4']").each((_, a) => {
+      let href = $(a).attr("href") || "";
+      if (!href) return;
+      if (href.startsWith("/")) href = BASE + href;
+      if (!/\.mp4(\?|$)/i.test(href)) return;
+
+      let label =
+        $(a).attr("label") ||
+        $(a).text().trim() ||
+        (href.match(/(\d{3,4}p)/i)?.[1]?.toUpperCase() || "MP4");
+
+      if (seen.has(href)) return;
+      seen.add(href);
+
+      streams.push({
+        title: formatName(titleText || "SKTonline video", flags),
+        name: formatTitle(label),
+        url: href
+      });
+      console.log(`[DEBUG] 🎞️ (anchor) ${label}: ${href}`);
+    });
+
+    // 3) Regex fallback cez celé HTML (chytí aj linky v skriptoch)
+    const mp4Regex = /(https?:\/\/[^\s"'<>]+\.mp4[^\s"'<>]*)/gi;
+    let m;
+    while ((m = mp4Regex.exec(html)) !== null) {
+      const link = m[1];
+      if (seen.has(link)) continue;
+
+      const label =
+        (link.match(/(\d{3,4}p)/i)?.[1]?.toUpperCase()) || "MP4";
+
+      seen.add(link);
+      streams.push({
+        title: formatName(titleText || "SKTonline video", flags),
+        name: formatTitle(label),
+        url: link
+      });
+      console.log(`[DEBUG] 🎞️ (regex) ${label}: ${link}`);
+    }
+
+    console.log(`[INFO] ✅ Našiel som ${streams.length} streamov pre videoId=${videoId}`);
+    return streams;
+  } catch (err) {
+    console.error("[ERROR] ❌ Chyba pri načítaní detailu videa:", err.message);
+    return [];
   }
 }
 
