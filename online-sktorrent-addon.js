@@ -23,7 +23,7 @@ const commonHeaders = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36',
     'Accept-Encoding': 'identity'
 };
-
+const BASE = "https://online.sktorrent.eu";
 function removeDiacritics(str) {
     return str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
