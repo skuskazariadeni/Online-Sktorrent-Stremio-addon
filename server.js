@@ -17,6 +17,7 @@ const HEADERS = {
   Referer: BASE_URL,
   "Accept-Encoding": "identity"
 };
+let sessionCookieHeader = "";
 
 const CATEGORIES = [
   { id: "videos", name: "Vsetko", path: "/videos" },
@@ -69,8 +70,40 @@ function pageFromSkip(extra) {
   return Math.floor(skip / 30) + 1;
 }
 
+function normalizeSetCookie(setCookie = []) {
+  return setCookie.map((cookie) => cookie.split(";")[0]).join("; ");
+}
+
+async function primeSession() {
+  try {
+    const response = await axios.get(`${BASE_URL}/`, {
+      headers: HEADERS,
+      timeout: 15000
+    });
+    const setCookie = response.headers?.["set-cookie"] || [];
+    if (setCookie.length > 0) {
+      sessionCookieHeader = normalizeSetCookie(setCookie);
+    }
+  } catch (error) {
+    // If homepage prefetch fails, normal requests can still try without cookie.
+  }
+}
+
 async function fetchHTML(url) {
-  const response = await axios.get(url, { headers: HEADERS, timeout: 15000 });
+  if (!sessionCookieHeader) {
+    await primeSession();
+  }
+  const response = await axios.get(url, {
+    headers: {
+      ...HEADERS,
+      ...(sessionCookieHeader ? { Cookie: sessionCookieHeader } : {})
+    },
+    timeout: 15000
+  });
+  const setCookie = response.headers?.["set-cookie"] || [];
+  if (setCookie.length > 0) {
+    sessionCookieHeader = normalizeSetCookie(setCookie);
+  }
   return cheerio.load(response.data);
 }
 
@@ -88,13 +121,19 @@ async function listCatalogItems(extra = {}) {
   }
 
   const $ = await fetchHTML(url);
-  const posts = $("div.well.well-sm").toArray();
+  let posts = $("div.well.well-sm").toArray();
+  if (posts.length === 0) {
+    posts = $("div.well-sm").toArray();
+  }
+  if (posts.length === 0) {
+    posts = $("div.well").toArray();
+  }
 
   return posts
     .map((post) => {
       const node = $(post);
       const linkEl = node.find("a").first();
-      const title = node.find("span").first().text().trim();
+      const title = node.find("span").first().text().trim() || linkEl.text().trim();
       const href = linkEl.attr("href");
       const rawPoster = node.find("img").first().attr("src") || "";
 
@@ -102,7 +141,7 @@ async function listCatalogItems(extra = {}) {
         return null;
       }
 
-      const poster = rawPoster.replace("1.jpg", "default.jpg");
+      const poster = rawPoster ? rawPoster.replace("1.jpg", "default.jpg") : undefined;
       const id = encodeMetaId({ href, title, poster });
 
       return {
