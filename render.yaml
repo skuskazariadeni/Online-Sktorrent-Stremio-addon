@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sktonline-stremio-addon
+    name: moj-sktorentonline-stremio
     runtime: node
     plan: free
     buildCommand: npm install
@@ -9,12 +9,12 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: ADDON_ID
-        value: com.cache.sktonline.stremio
+        value: com.skuskazariadeni.onlinesktorrent.stremio
       - key: ADDON_NAME
-        value: SkTonline (Unofficial)
+        value: SKTonline Online Streams
       - key: ADDON_VERSION
-        value: 0.1.0
+        value: 1.0.0
       - key: CATALOG_ID
-        value: sktonline_catalog
+        value: online_sktorrent_catalog
       - key: CATALOG_NAME
-        value: SkTonline
+        value: SKTonline Online Streams

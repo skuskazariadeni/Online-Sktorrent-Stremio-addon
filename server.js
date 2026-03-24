@@ -5,11 +5,11 @@ const cheerio = require("cheerio");
 const BASE_DOMAIN = "online.sktorrent.eu";
 const BASE_URL = `https://${BASE_DOMAIN}`;
 const PORT = process.env.PORT || 7000;
-const ADDON_ID = process.env.ADDON_ID || "com.cache.sktonline.stremio";
-const ADDON_NAME = process.env.ADDON_NAME || "SkTonline (Unofficial)";
-const ADDON_VERSION = process.env.ADDON_VERSION || "0.1.0";
-const CATALOG_ID = process.env.CATALOG_ID || "sktonline_catalog";
-const CATALOG_NAME = process.env.CATALOG_NAME || "SkTonline";
+const ADDON_ID = process.env.ADDON_ID || "com.skuskazariadeni.onlinesktorrent.stremio";
+const ADDON_NAME = process.env.ADDON_NAME || "SKTonline Online Streams";
+const ADDON_VERSION = process.env.ADDON_VERSION || "1.0.0";
+const CATALOG_ID = process.env.CATALOG_ID || "online_sktorrent_catalog";
+const CATALOG_NAME = process.env.CATALOG_NAME || "SKTonline Online Streams";
 
 const HEADERS = {
   "User-Agent":

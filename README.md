@@ -1,4 +1,4 @@
-# SkTonline Stremio Addon
+# SKTonline Online Streams - Stremio Addon
 
 Port Kodi addonu `plugin.video.sktonline` do formatu Stremio addonu.
 
@@ -10,7 +10,7 @@ Port Kodi addonu `plugin.video.sktonline` do formatu Stremio addonu.
 
 ## Spustenie
 
-1. Otvor terminal v `v roote repozitara`
+1. Otvor terminal v `stremio-sktonline-addon`
 2. Nainstaluj zavislosti:
 
 ```bash
@@ -31,17 +31,17 @@ npm start
 
 Nazov/ID nemusis menit v kode, staci cez premenne prostredia:
 
-- `ADDON_ID` (napr. `com.tvojeid.stremio`)
-- `ADDON_NAME` (napr. `Moj Addon`)
+- `ADDON_ID` (default: `com.skuskazariadeni.onlinesktorrent.stremio`)
+- `ADDON_NAME` (default: `SKTonline Online Streams`)
 - `ADDON_VERSION` (napr. `1.0.0`)
-- `CATALOG_ID` (napr. `moj_catalog`)
-- `CATALOG_NAME` (napr. `Moj Katalog`)
+- `CATALOG_ID` (default: `online_sktorrent_catalog`)
+- `CATALOG_NAME` (default: `SKTonline Online Streams`)
 
 Priklad lokalneho spustenia v PowerShell:
 
 ```powershell
-$env:ADDON_ID="com.tvojeid.stremio"
-$env:ADDON_NAME="Moj Addon"
+$env:ADDON_ID="com.skuskazariadeni.onlinesktorrent.stremio"
+$env:ADDON_NAME="SKTonline Online Streams"
 npm start
 ```
 
@@ -54,7 +54,7 @@ V projekte je pripraveny `render.yaml`, takze:
 3. Render nacita `render.yaml` a nasadi `npm install` + `npm start`
 4. po deploy otvor vo Stremio:
 
-`https://tvoj-render-service.onrender.com/manifest.json`
+`https://moj-sktorentonline-stremio.onrender.com/manifest.json`
 
 Kompatibilita s povodnym repo stylom:
 
