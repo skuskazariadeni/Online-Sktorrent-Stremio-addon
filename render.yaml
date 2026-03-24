@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: sktonline-stremio-addon
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ADDON_ID
+        value: com.cache.sktonline.stremio
+      - key: ADDON_NAME
+        value: SkTonline (Unofficial)
+      - key: ADDON_VERSION
+        value: 0.1.0
+      - key: CATALOG_ID
+        value: sktonline_catalog
+      - key: CATALOG_NAME
+        value: SkTonline
