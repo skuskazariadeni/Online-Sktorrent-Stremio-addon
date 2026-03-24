@@ -10,7 +10,7 @@ Port Kodi addonu `plugin.video.sktonline` do formatu Stremio addonu.
 
 ## Spustenie
 
-1. Otvor terminal v `stremio-sktonline-addon`
+1. Otvor terminal v `v roote repozitara`
 2. Nainstaluj zavislosti:
 
 ```bash
