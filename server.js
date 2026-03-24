@@ -121,6 +121,7 @@ async function listCatalogItems(extra = {}) {
   }
 
   const $ = await fetchHTML(url);
+  const pageTitle = ($("title").first().text() || "").trim();
   let posts = $("div.well.well-sm").toArray();
   if (posts.length === 0) {
     posts = $("div.well-sm").toArray();
@@ -128,6 +129,12 @@ async function listCatalogItems(extra = {}) {
   if (posts.length === 0) {
     posts = $("div.well").toArray();
   }
+  if (posts.length === 0) {
+    posts = $("article, .post, .item, .card").toArray();
+  }
+  console.log("[catalog] url=", url);
+  console.log("[catalog] title=", pageTitle || "(empty)");
+  console.log("[catalog] postsFound=", posts.length);
 
   return posts
     .map((post) => {
@@ -137,7 +144,7 @@ async function listCatalogItems(extra = {}) {
       const href = linkEl.attr("href");
       const rawPoster = node.find("img").first().attr("src") || "";
 
-      if (!href || !title) {
+      if (!href || !title || !href.includes("/video/")) {
         return null;
       }
 
@@ -213,6 +220,7 @@ const builder = new addonBuilder(manifest);
 builder.defineCatalogHandler(async ({ extra }) => {
   try {
     const metas = await listCatalogItems(extra || {});
+    console.log("[catalog] metas=", metas.length);
     return { metas };
   } catch (error) {
     console.error("Catalog error:", error.message);
