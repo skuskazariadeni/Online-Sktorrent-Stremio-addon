@@ -104,6 +104,8 @@ async function fetchHTML(url) {
   if (setCookie.length > 0) {
     sessionCookieHeader = normalizeSetCookie(setCookie);
   }
+  console.log("[fetch] status=", response.status, "url=", url);
+  console.log("[fetch] size=", String(response.data || "").length);
   return cheerio.load(response.data);
 }
 
@@ -132,6 +134,11 @@ async function listCatalogItems(extra = {}) {
   if (posts.length === 0) {
     posts = $("article, .post, .item, .card").toArray();
   }
+  let useGlobalAnchorFallback = false;
+  if (posts.length === 0) {
+    useGlobalAnchorFallback = true;
+    posts = $("a").toArray();
+  }
   console.log("[catalog] url=", url);
   console.log("[catalog] title=", pageTitle || "(empty)");
   console.log("[catalog] postsFound=", posts.length);
@@ -139,12 +146,21 @@ async function listCatalogItems(extra = {}) {
   return posts
     .map((post) => {
       const node = $(post);
-      const linkEl = node.find("a").first();
-      const title = node.find("span").first().text().trim() || linkEl.text().trim();
+      const linkEl = useGlobalAnchorFallback ? node : node.find("a").first();
       const href = linkEl.attr("href");
-      const rawPoster = node.find("img").first().attr("src") || "";
+      const title =
+        node.find("span").first().text().trim() ||
+        node.find("h2,h3,h4").first().text().trim() ||
+        linkEl.text().trim();
+      const rawPoster = node.find("img").first().attr("src") || linkEl.find("img").first().attr("src") || "";
 
-      if (!href || !title || !href.includes("/video/")) {
+      if (!href || !title) {
+        return null;
+      }
+      if (!href.startsWith("/") || href.startsWith("//")) {
+        return null;
+      }
+      if (href.includes("/search/") || href.includes("/videos?") || href === "/videos") {
         return null;
       }
 
@@ -159,7 +175,9 @@ async function listCatalogItems(extra = {}) {
         posterShape: "landscape"
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((meta, index, arr) => arr.findIndex((x) => x.id === meta.id) === index)
+    .slice(0, 100);
 }
 
 async function extractStreams(metaId) {
